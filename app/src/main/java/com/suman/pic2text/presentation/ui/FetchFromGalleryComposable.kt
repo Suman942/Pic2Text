@@ -4,23 +4,23 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
-import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,7 +28,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.suman.pic2text.R
 import com.suman.pic2text.data.DataExtraction
+import com.suman.pic2text.data.rotateIfRequired
 
 @Composable
 fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
@@ -43,14 +46,15 @@ fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
-    var result by remember { mutableStateOf<String>("Extracting data...") }
+    var result by remember { mutableStateOf("Upload Image to extract data") }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         imageUri = uri
         uri?.let {
-            imageBitmap = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
+       val rawBitmap  = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
+            imageBitmap = rawBitmap.rotateIfRequired(context,uri)
         }
     }
 
@@ -67,22 +71,33 @@ fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_launcher_background),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().alpha(if (imageBitmap == null) 1f else 0f),
-                    contentScale = ContentScale.Crop,
-                )
+
+                Box(modifier = Modifier.fillMaxSize().padding(16.dp) .clip(RoundedCornerShape(16.dp))
+                    .alpha(if (imageBitmap == null) 1f else 0f).background(MaterialTheme.colorScheme.primary),
+                    ) {
+                    Image(
+                        painter = painterResource(R.drawable.no_image_placeholder),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .alpha(if (imageBitmap == null) 1f else 0f),
+                        contentScale = ContentScale.Crop,
+                        colorFilter = ColorFilter.tint(
+                            Color.White
+                        )
+                    )
+                }
                 imageBitmap?.let { bitmap->
                     Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = null,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(16.dp).clip(RoundedCornerShape(16.dp)),
                         contentScale = ContentScale.Crop
                     )
 
                     DataExtraction().extraction(bitmap,
-                        onResult = { result = it
+                        onResult = {
+                            result = it
                             Log.d("ExtractedContentComposable", result)},
                         onError = {
                             result = it.message ?: "Unable to extract"
@@ -95,15 +110,21 @@ fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
 
             }
 
-            Box(modifier = Modifier.weight(1f).padding(8.dp)) {
+            Box(modifier = Modifier.weight(1f)){
                 val scrollState = rememberScrollState()
-                Text(modifier = Modifier.fillMaxSize().verticalScroll(scrollState), text = result)
+                Text(modifier = Modifier.fillMaxSize().align(Alignment.Center).padding(horizontal = 16.dp, vertical = 8.dp).verticalScroll(scrollState), text = result)
             }
 
             Button(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
+                colors = ButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = Color.White,
+                    disabledContainerColor = MaterialTheme.colorScheme.tertiary,
+                    disabledContentColor = Color.Gray
+                ),
                 onClick = { launcher.launch("image/*") },
             ) { Text("Select from gallery") }
 
