@@ -1,7 +1,9 @@
 package com.suman.pic2text.presentation.ui
 
 import android.graphics.Bitmap
+import android.graphics.ImageDecoder
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -53,8 +55,18 @@ fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
     ) { uri: Uri? ->
         imageUri = uri
         uri?.let {
-       val rawBitmap  = MediaStore.Images.Media.getBitmap(context.contentResolver, it)
-            imageBitmap = rawBitmap.rotateIfRequired(context,uri)
+
+            val rawBitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val source = ImageDecoder.createSource(context.contentResolver, it)
+                ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
+                    decoder.setTargetSampleSize(4)
+                }
+            }else{
+                val source = MediaStore.Images.Media.getBitmap(context.contentResolver,it)
+                Bitmap.createScaledBitmap(source,1000,1000,true)
+            }
+            imageBitmap = rawBitmap.rotateIfRequired(context, uri)
+
         }
     }
 
@@ -72,13 +84,20 @@ fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
                 contentAlignment = Alignment.Center
             ) {
 
-                Box(modifier = Modifier.fillMaxSize().padding(16.dp) .clip(RoundedCornerShape(16.dp))
-                    .alpha(if (imageBitmap == null) 1f else 0f).background(MaterialTheme.colorScheme.primary),
-                    ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .alpha(if (imageBitmap == null) 1f else 0f)
+                        .background(MaterialTheme.colorScheme.primary),
+                ) {
                     Image(
                         painter = painterResource(R.drawable.no_image_placeholder),
                         contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().padding(16.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .alpha(if (imageBitmap == null) 1f else 0f),
                         contentScale = ContentScale.Crop,
@@ -87,18 +106,23 @@ fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
                         )
                     )
                 }
-                imageBitmap?.let { bitmap->
+                imageBitmap?.let { bitmap ->
                     Image(
                         bitmap = bitmap.asImageBitmap(),
                         contentDescription = null,
-                        modifier = Modifier.fillMaxWidth().padding(16.dp).clip(RoundedCornerShape(16.dp)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(16.dp)),
                         contentScale = ContentScale.Crop
                     )
 
-                    DataExtraction().extraction(bitmap,
+                    DataExtraction().extraction(
+                        bitmap,
                         onResult = {
                             result = it
-                            Log.d("ExtractedContentComposable", result)},
+                            Log.d("ExtractedContentComposable", result)
+                        },
                         onError = {
                             result = it.message ?: "Unable to extract"
                             Log.d("ExtractedContentComposable", result)
@@ -110,9 +134,16 @@ fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
 
             }
 
-            Box(modifier = Modifier.weight(1f)){
+            Box(modifier = Modifier.weight(1f)) {
                 val scrollState = rememberScrollState()
-                Text(modifier = Modifier.fillMaxSize().align(Alignment.Center).padding(horizontal = 16.dp, vertical = 8.dp).verticalScroll(scrollState), text = result)
+                Text(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .align(Alignment.Center)
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .verticalScroll(scrollState),
+                    text = result
+                )
             }
 
             Button(
