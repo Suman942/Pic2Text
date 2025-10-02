@@ -56,10 +56,15 @@ fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
         imageUri = uri
         uri?.let {
 
+            val displayMetrics = context.resources.displayMetrics
+            val screenWidth = displayMetrics.widthPixels
+            val screenHeight = displayMetrics.heightPixels / 3
+
+
             val rawBitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val source = ImageDecoder.createSource(context.contentResolver, it)
                 ImageDecoder.decodeBitmap(source) { decoder, _, _ ->
-                    decoder.setTargetSampleSize(4)
+                    decoder.setTargetSize(screenWidth,screenHeight)
                 }
             }else{
                 val source = MediaStore.Images.Media.getBitmap(context.contentResolver,it)
@@ -100,7 +105,6 @@ fun FetchFromGalleryComposable(modifier: Modifier = Modifier) {
                             .padding(16.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .alpha(if (imageBitmap == null) 1f else 0f),
-                        contentScale = ContentScale.Crop,
                         colorFilter = ColorFilter.tint(
                             Color.White
                         )
